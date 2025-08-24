@@ -1,0 +1,7 @@
+{
+    "Lua.runtime.version": "Lua 5.1",
+    "Lua.runtime.special": {
+        "love": "require"
+    },
+    "Lua.workspace.checkThirdParty": false
+}
