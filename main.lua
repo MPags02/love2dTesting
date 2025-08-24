@@ -1,9 +1,16 @@
 function love.load()
-    -- Load other modules
+    -- Load other modules and capture returned functions
     require("menu")
-    require("game")
+    local game = require("game")  -- Capture returned table
     require("settings")
     require("utils")
+    
+    -- Store game functions globally
+    loadGame = game.loadGame
+    updateGame = game.updateGame
+    drawGame = game.drawGame
+    checkGameButtons = game.checkGameButtons
+    levelComplete = game.levelComplete
     
     -- Game state management
     gameState = "menu"  -- Can be: "menu", "game", "settings"
@@ -22,6 +29,17 @@ function love.load()
     -- Initialize menus
     initMenu()
     initSettings()
+
+    camera = {
+        x = 0,
+        y = 0,
+        scale = 1,
+        -- We'll set these in loadGame based on level size
+        minX = 0,
+        maxX = 0,
+        minY = 0,
+        maxY = 0
+    }
 end
 
 function love.update(dt)
@@ -50,6 +68,9 @@ function love.mousepressed(x, y, button)
         elseif gameState == "settings" then
             checkSettingsButtons(x, y)
             checkColorOptions(x, y)
+        elseif gameState == "game" then
+            -- Delegate game button checking to game.lua
+            checkGameButtons(x, y)
         end
     end
 end

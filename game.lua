@@ -3,6 +3,46 @@ function loadGame()
     player = levelData.player
     platforms = levelData.platforms
     goal = levelData.goal
+    
+    -- Reset goal state
+    goal.reached = false
+    
+    -- Set camera boundaries based on level size
+    camera.minX = levelData.cameraBounds.minX
+    camera.maxX = levelData.cameraBounds.maxX
+    camera.minY = levelData.cameraBounds.minY
+    camera.maxY = levelData.cameraBounds.maxY
+    
+    -- Reset player position and velocity to start position
+    player.x = player.startX
+    player.y = player.startY
+    player.xSpeed = 0
+    player.ySpeed = 0
+    player.isGrounded = false
+    
+    -- Center camera on player initially
+    camera.x = player.x - love.graphics.getWidth()/2
+    camera.y = player.y - love.graphics.getHeight()/2
+    
+    -- Reset goal arrow mechanics
+    goalArrow = {
+        active = false,
+        cooldown = 0,
+        maxCooldown = 5,
+        duration = 2,
+        activeTime = 0
+    }
+    
+    -- Reset button
+    resetButton = {
+        x = love.graphics.getWidth() - 120,
+        y = 10,
+        width = 110,
+        height = 30,
+        text = "Reset Level"
+    }
+    
+    print("Level reset! Player at:", player.x, player.y)
 end
 
 function updateGame(dt)
@@ -69,6 +109,49 @@ function updateGame(dt)
         player.isGrounded = false
     end
 
+    -- Update goal arrow mechanics
+    if goalArrow.active then
+        goalArrow.activeTime = goalArrow.activeTime - dt
+        if goalArrow.activeTime <= 0 then
+            goalArrow.active = false
+            goalArrow.cooldown = goalArrow.maxCooldown
+        end
+    else
+        goalArrow.cooldown = math.max(0, goalArrow.cooldown - dt)
+    end
+    
+    -- Toggle goal arrow with 'G' key if not on cooldown
+    if love.keyboard.isDown("g") and goalArrow.cooldown <= 0 and not goalArrow.active then
+        goalArrow.active = true
+        goalArrow.activeTime = goalArrow.duration
+    end
+
+    -- Add keyboard reset with 'R' key with debouncing
+    if love.keyboard.isDown("r") and not resetCooldown then
+        loadGame() -- Reset the current level
+        resetCooldown = 0.5 -- 0.5 second cooldown
+    end
+    
+    -- Handle reset cooldown
+    if resetCooldown then
+        resetCooldown = math.max(0, resetCooldown - dt)
+        if resetCooldown == 0 then
+            resetCooldown = nil
+        end
+    end
+
+    -- Update camera to follow player with smoothing
+    local targetX = player.x - love.graphics.getWidth()/2
+    local targetY = player.y - love.graphics.getHeight()/2
+    
+    -- Smooth camera movement (lerp)
+    camera.x = camera.x + (targetX - camera.x) * 10 * dt
+    camera.y = camera.y + (targetY - camera.y) * 10 * dt
+    
+    -- Keep camera within level bounds
+    camera.x = math.max(camera.minX, math.min(camera.maxX, camera.x))
+    camera.y = math.max(camera.minY, math.min(camera.maxY, camera.y))
+
     -- Check if player reached the goal
     if not goal.reached and CheckCollision(player.x, player.y, player.width, player.height, 
                                          goal.x, goal.y, goal.width, goal.height) then
@@ -76,8 +159,8 @@ function updateGame(dt)
         levelComplete()
     end
 
-    -- Respawn if fell out of map
-    if player.y > 600 then
+    -- Respawn if fell out of map (use world coordinates now)
+    if player.y > camera.maxY + 200 then  -- Fell far below the world
         player.x = player.startX
         player.y = player.startY
         player.xSpeed = 0
@@ -91,6 +174,10 @@ function updateGame(dt)
 end
 
 function drawGame()
+    -- Apply camera transformation
+    love.graphics.push()
+    love.graphics.translate(-camera.x, -camera.y)
+    
     -- Draw platforms
     love.graphics.setColor(0.2, 0.8, 0.2)
     for i, platform in ipairs(platforms) do
@@ -105,19 +192,79 @@ function drawGame()
     end
     love.graphics.rectangle("fill", goal.x, goal.y, goal.width, goal.height)
 
+    -- Draw goal arrow if active
+    if goalArrow.active and not goal.reached then
+        drawGoalArrow()
+    end
+
     -- Draw player with selected color
     love.graphics.setColor(unpack(playerSettings.color))
     love.graphics.rectangle("fill", player.x, player.y, player.width, player.height)
-
-    -- Draw UI
+    
+    love.graphics.pop() -- Restore original transformation
+    
+    -- Draw UI (stays fixed on screen)
     love.graphics.setColor(1, 1, 1)
     love.graphics.setFont(smallFont)
     love.graphics.print("Press ESC to return to menu", 10, 10)
     love.graphics.print("Level: " .. currentLevel, 10, 30)
+    love.graphics.print("Position: " .. math.floor(player.x) .. ", " .. math.floor(player.y), 10, 50)
+    love.graphics.print("Press R to reset level", 10, 90)  -- Add this line
+
+    -- Draw goal arrow cooldown info
+    if goalArrow.cooldown > 0 then
+        love.graphics.print("Arrow: " .. string.format("%.1f", goalArrow.cooldown) .. "s", 10, 70)
+    else
+        love.graphics.print("Press G for goal arrow", 10, 70)
+    end
+    
+    -- Draw reset button
+    drawResetButton()
     
     if goal.reached then
         love.graphics.printf("LEVEL COMPLETE!", 0, 200, love.graphics.getWidth(), "center")
     end
+end
+
+function drawGoalArrow()
+    local dx = goal.x - player.x
+    local dy = goal.y - player.y
+    local distance = math.sqrt(dx * dx + dy * dy)
+    
+    if distance > 50 then  -- Only draw if goal is far enough
+        -- Normalize direction
+        dx = dx / distance
+        dy = dy / distance
+        
+        -- Arrow position (slightly above player)
+        local arrowX = player.x + player.width/2
+        local arrowY = player.y - 30
+        
+        -- Draw arrow line
+        love.graphics.setColor(1, 0.5, 0) -- Orange
+        love.graphics.setLineWidth(2)
+        love.graphics.line(arrowX, arrowY, arrowX + dx * 40, arrowY + dy * 40)
+        
+        -- Draw arrowhead
+        love.graphics.polygon("fill", 
+            arrowX + dx * 40, arrowY + dy * 40,
+            arrowX + dx * 30 + dy * 8, arrowY + dy * 30 - dx * 8,
+            arrowX + dx * 30 - dy * 8, arrowY + dy * 30 + dx * 8
+        )
+    end
+end
+
+function drawResetButton()
+    -- Button background
+    love.graphics.setColor(0.8, 0.2, 0.2) -- Red
+    love.graphics.rectangle("fill", resetButton.x, resetButton.y, resetButton.width, resetButton.height)
+    
+    -- Button border
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.rectangle("line", resetButton.x, resetButton.y, resetButton.width, resetButton.height)
+    
+    -- Button text
+    love.graphics.printf(resetButton.text, resetButton.x, resetButton.y + 8, resetButton.width, "center")
 end
 
 function levelComplete()
@@ -129,3 +276,22 @@ function levelComplete()
         currentLevel = 1
     end
 end
+
+function checkGameButtons(x, y)
+    -- Check if reset button was clicked
+    if resetButton and x >= resetButton.x and x <= resetButton.x + resetButton.width and
+       y >= resetButton.y and y <= resetButton.y + resetButton.height then
+        loadGame() -- Reset the current level
+        return true
+    end
+    return false
+end
+
+-- Return the functions that need to be accessible
+return {
+    loadGame = loadGame,
+    updateGame = updateGame,
+    drawGame = drawGame,
+    checkGameButtons = checkGameButtons,
+    levelComplete = levelComplete
+}
