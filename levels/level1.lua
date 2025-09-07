@@ -90,5 +90,12 @@ return {
         width = 30,
         height = 30,
         reached = false
+    },
+    
+    enemies = {
+        -- Add some enemies in strategic locations
+        {x = 350, y = 520, width = 20, height = 20},  -- One near the start
+        {x = 650, y = 420, width = 20, height = 20},  -- One on the right path
+        {x = 150, y = 220, width = 20, height = 20}   -- One near the secret area
     }
 }

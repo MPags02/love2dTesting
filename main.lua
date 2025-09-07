@@ -4,6 +4,7 @@ function love.load()
     local game = require("game")  -- Capture returned table
     require("settings")
     require("utils")
+    require("leaderboard")
     
     -- Store game functions globally
     loadGame = game.loadGame
@@ -26,9 +27,10 @@ function love.load()
     font = love.graphics.newFont(24)
     smallFont = love.graphics.newFont(18)
     
-    -- Initialize menus
+    -- Initialize menus and game components
     initMenu()
     initSettings()
+    initLeaderboard()
 
     camera = {
         x = 0,
@@ -58,6 +60,8 @@ function love.draw()
         drawGame()
     elseif gameState == "settings" then
         drawSettings()
+    elseif gameState == "leaderboard" then
+        drawLeaderboard()
     end
 end
 
@@ -66,11 +70,43 @@ function love.mousepressed(x, y, button)
         if gameState == "menu" then
             checkMenuButtons(x, y)
         elseif gameState == "settings" then
+            -- Check if clicking on name input
+            if x >= nameInput.x and x <= nameInput.x + nameInput.width and
+               y >= nameInput.y and y <= nameInput.y + nameInput.height then
+                nameInput.active = true
+            else
+                nameInput.active = false
+                playerName = nameInput.text  -- Save name when clicking away
+            end
+            
             checkSettingsButtons(x, y)
             checkColorOptions(x, y)
         elseif gameState == "game" then
             -- Delegate game button checking to game.lua
             checkGameButtons(x, y)
+        elseif gameState == "leaderboard" then
+            checkLeaderboardButtons(x, y)
+        end
+    end
+end
+
+function love.textinput(text)
+    if gameState == "settings" and nameInput.active then
+        if #nameInput.text < 15 then  -- Limit name length
+            nameInput.text = nameInput.text .. text
+            playerName = nameInput.text
+        end
+    end
+end
+
+function love.keypressed(key)
+    if gameState == "settings" and nameInput.active then
+        if key == "backspace" then
+            nameInput.text = string.sub(nameInput.text, 1, -2)
+            playerName = nameInput.text
+        elseif key == "return" or key == "escape" then
+            nameInput.active = false
+            playerName = nameInput.text
         end
     end
 end

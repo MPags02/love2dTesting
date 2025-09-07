@@ -1,4 +1,13 @@
 function initSettings()
+    nameInput = {
+        text = playerName,
+        x = 200,
+        y = 130,
+        width = 200,
+        height = 30,
+        active = false
+    }
+    
     colorOptions = {
         {name = "White", color = {1, 1, 1}},
         {name = "Red", color = {1, 0, 0}},
@@ -13,7 +22,7 @@ function initSettings()
         {
             text = "Back to Menu",
             x = 200,
-            y = 350,
+            y = 500,  -- Moved down to be below all other elements
             width = 200,
             height = 50,
             action = function() gameState = "menu" end
@@ -26,12 +35,22 @@ function drawSettings()
     love.graphics.setColor(1, 1, 1)
     love.graphics.printf("Settings", 0, 50, love.graphics.getWidth(), "center")
 
-    -- Draw color options
+    -- Draw name input section
     love.graphics.setFont(smallFont)
-    love.graphics.printf("Select Player Color:", 200, 80, 200, "center")
+    love.graphics.printf("Player Name:", 200, 100, 200, "center")
+    love.graphics.setColor(0.3, 0.3, 0.3)
+    love.graphics.rectangle("fill", nameInput.x, nameInput.y, nameInput.width, nameInput.height)
+    love.graphics.setColor(nameInput.active and {1, 1, 0} or {1, 1, 1})
+    love.graphics.rectangle("line", nameInput.x, nameInput.y, nameInput.width, nameInput.height)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.printf(nameInput.text, nameInput.x + 10, nameInput.y + 5, nameInput.width - 20, "left")
+
+    -- Draw color options section with more spacing
+    love.graphics.setFont(smallFont)
+    love.graphics.printf("Select Player Color:", 200, 220, 200, "center")
     
     for i, colorOption in ipairs(colorOptions) do
-        local y = 100 + (i-1) * 30
+        local y = 250 + (i-1) * 30
         
         -- Draw the option background - different color for selected item
         if i == playerSettings.selectedColorIndex then
